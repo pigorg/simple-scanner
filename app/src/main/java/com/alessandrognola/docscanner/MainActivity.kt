@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
@@ -15,8 +16,10 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,7 +32,9 @@ import androidx.compose.ui.unit.dp
 import com.alessandrognola.docscanner.billing.BillingRepository
 import com.alessandrognola.docscanner.billing.PRODUCT_MONTH
 import com.alessandrognola.docscanner.billing.PRODUCT_YEAR
+import com.alessandrognola.docscanner.files.FileFormat
 import com.alessandrognola.docscanner.files.SaveShareHelper
+import kotlinx.coroutines.delay
 import com.alessandrognola.docscanner.quota.QuotaState
 import com.alessandrognola.docscanner.quota.ScanQuotaRepository
 import com.alessandrognola.docscanner.scan.rememberDocumentScannerLauncher
@@ -97,6 +102,7 @@ private fun AppContent(
     val snackbarHostState = remember { SnackbarHostState() }
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
     var showPaywall by remember { mutableStateOf(false) }
+    var saveConfirmationVisible by remember { mutableStateOf(false) }
     val quotaState by quotaRepository.state.collectAsState(
         initial = QuotaState(0, ScanQuotaRepository.FREE_SCANS_PER_MONTH, false, 0L)
     )
@@ -135,18 +141,31 @@ private fun AppContent(
                 )
                 is Screen.Result -> ResultScreen(
                     pageUri = current.pageUri,
-                    onSave = { uri ->
+                    onSave = { uri, format ->
                         scope.launch {
-                            val saved = withContext(Dispatchers.IO) { saveShareHelper.saveToGallery(uri) }
-                            snackbarHostState.showSnackbar(
-                                message = if (saved != null) "✓ Salvato nella galleria" else "Salvataggio non riuscito",
-                                duration = SnackbarDuration.Long
-                            )
+                            val saved = withContext(Dispatchers.IO) { saveShareHelper.saveToGallery(uri, format) }
+                            if (saved != null) {
+                                saveConfirmationVisible = true
+                            } else {
+                                snackbarHostState.showSnackbar(
+                                    message = "Salvataggio non riuscito",
+                                    duration = SnackbarDuration.Long
+                                )
+                            }
                         }
                     },
-                    onShare = { uri ->
-                        val shareIntent = saveShareHelper.shareImage(uri)
-                        activity.startActivity(Intent.createChooser(shareIntent, "Condividi tramite"))
+                    onShare = { uri, format ->
+                        scope.launch {
+                            val shareIntent = withContext(Dispatchers.IO) { saveShareHelper.shareFile(uri, format) }
+                            if (shareIntent != null) {
+                                activity.startActivity(Intent.createChooser(shareIntent, "Condividi tramite"))
+                            } else {
+                                snackbarHostState.showSnackbar(
+                                    message = "Condivisione non riuscita",
+                                    duration = SnackbarDuration.Long
+                                )
+                            }
+                        }
                     },
                     onDone = { screen = Screen.Home }
                 )
@@ -165,6 +184,22 @@ private fun AppContent(
                 billingRepository.launchPurchaseFlow(activity, PRODUCT_YEAR)
                 showPaywall = false
             }
+        )
+    }
+
+    if (saveConfirmationVisible) {
+        LaunchedEffect(Unit) {
+            delay(1500)
+            saveConfirmationVisible = false
+        }
+        AlertDialog(
+            onDismissRequest = { saveConfirmationVisible = false },
+            confirmButton = {
+                TextButton(onClick = { saveConfirmationVisible = false }) {
+                    Text("OK")
+                }
+            },
+            title = { Text("✓ Salvataggio avvenuto") }
         )
     }
 }

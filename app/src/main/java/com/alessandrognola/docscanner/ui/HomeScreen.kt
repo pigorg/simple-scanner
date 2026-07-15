@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -29,6 +31,9 @@ import java.text.SimpleDateFormat
 import java.time.Year
 import java.util.Date
 import java.util.Locale
+import kotlin.math.ceil
+
+private const val DAY_MILLIS = 24L * 60 * 60 * 1000
 
 @Composable
 fun HomeScreen(
@@ -61,14 +66,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             if (quotaState.isPremium) {
-                val expiryText = remember(quotaState.premiumUntilMillis) {
-                    SimpleDateFormat("dd/MM/yyyy", Locale.ITALY).format(Date(quotaState.premiumUntilMillis))
-                }
-                Text(
-                    text = "Scansioni illimitate attive fino al $expiryText",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
+                PremiumStatusCard(premiumUntilMillis = quotaState.premiumUntilMillis)
             } else {
                 Text(
                     text = "${quotaState.scansUsed}/${ScanQuotaRepository.FREE_SCANS_PER_MONTH} scansioni gratuite usate questo mese",
@@ -104,5 +102,48 @@ fun HomeScreen(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
         )
+    }
+}
+
+@Composable
+private fun PremiumStatusCard(premiumUntilMillis: Long) {
+    val expiryText = remember(premiumUntilMillis) {
+        SimpleDateFormat("dd/MM/yyyy", Locale.ITALY).format(Date(premiumUntilMillis))
+    }
+    val daysRemaining = remember(premiumUntilMillis) {
+        ceil((premiumUntilMillis - System.currentTimeMillis()) / DAY_MILLIS.toDouble())
+            .toLong()
+            .coerceAtLeast(0)
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "✓ Piano Premium attivo",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Scade il $expiryText",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = if (daysRemaining > 0) "$daysRemaining giorni rimanenti" else "In scadenza oggi",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
     }
 }

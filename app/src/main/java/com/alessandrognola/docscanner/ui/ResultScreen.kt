@@ -21,12 +21,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.alessandrognola.docscanner.files.FileFormat
 
 @Composable
 fun ResultScreen(
     pageUri: Uri,
-    onSave: (Uri) -> Unit,
-    onShare: (Uri) -> Unit,
+    onSave: (Uri, FileFormat) -> Unit,
+    onShare: (Uri, FileFormat) -> Unit,
     onDone: () -> Unit
 ) {
     val context = LocalContext.current
@@ -47,15 +48,30 @@ fun ResultScreen(
             )
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(onClick = { onSave(pageUri) }) {
-                Text("Salva")
-            }
-            OutlinedButton(onClick = { onShare(pageUri) }) {
-                Text("Condividi")
-            }
+
+        Text(text = "Salva", style = MaterialTheme.typography.labelLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = { onSave(pageUri, FileFormat.PDF) }, modifier = Modifier.fillMaxWidth()) {
+            Text("Salva PDF")
         }
         Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = { onSave(pageUri, FileFormat.JPG) }, modifier = Modifier.fillMaxWidth()) {
+            Text("Salva JPG (immagine)")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(text = "Condividi", style = MaterialTheme.typography.labelLarge)
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedButton(onClick = { onShare(pageUri, FileFormat.PDF) }, modifier = Modifier.fillMaxWidth()) {
+            Text("Condividi PDF")
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedButton(onClick = { onShare(pageUri, FileFormat.JPG) }, modifier = Modifier.fillMaxWidth()) {
+            Text("Condividi JPG (immagine)")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = onDone) {
                 Text("Fatto")
